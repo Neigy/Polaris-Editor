@@ -15,16 +15,16 @@ This project digs into the `gp_prius.dat` files, which use the IGHW format to st
 Here’s what we’ve figured out about the sections in `gp_prius.dat`, grouped by data type:
 
 ### General
-| Offset       | Role                | Data Structure                              | Notes                                                                |
-|--------------|---------------------|---------------------------------------------|----------------------------------------------------------------------|
-| `0x00011300` | Name Tables         | Consecutive null-terminated strings         | Indexed by TUID or position in other sections.                       |
-| `0x00025022` | Instance Types      | 16 bytes: TUID (8), Type (4), Padding (4)   | Types: 0=Moby, 1=Path, 2=Volume, 3=Clue, 4=Controller, 5=Scent, etc. |
+| Offset       | Role                | Data Structure                              | Notes                                                                         |
+|--------------|---------------------|---------------------------------------------|-------------------------------------------------------------------------------|
+| `0x00011300` | Name Tables         | Consecutive null-terminated strings         | Indexed by TUID or position in other sections.                                |
+| `0x00025022` | Instance Types      | 16 bytes: TUID (8), Type (4), Padding (4)   | Types: 0=Moby, 1=Path, 2=Volume, 3=Clue, 4=Controller, 5=Scent, 6=Area, 7=Pod |
 
 ### Mobys
 | Offset       | Role                | Data Structure                                      | Notes                                                                |
 |--------------|---------------------|-----------------------------------------------------|----------------------------------------------------------------------|
 | `0x00025048` | Moby Instances      | 80 bytes: Index/Group (4), Unknown (16), Pos/Rot/Scale (28), Unknown (32) | Coordinates as floats, rotation in radians.    |
-| `0x0002504C` | Moby Metadata       | 16 bytes: TUID (8), NameOffset (4), Zone (4)        | Zone’s in the last 4 bytes.                                          |
+| `0x0002504C` | Moby Metadata       | 16 bytes: TUID (8), NameOffset (4), Zone (4)                              | Zone’s in the last 4 bytes.                    |
 
 ### Cuboids (Volumes/Clues)
 | Offset       | Role                  | Data Structure                                      | Notes                                                               |

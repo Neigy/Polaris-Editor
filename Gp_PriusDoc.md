@@ -1,14 +1,28 @@
 # Gp_Prius Documentation
 
-This project digs into the `gp_prius.dat` files, which use the IGHW format to stash level data for *Ratchet & Clank* games on the PS3. We’re talking mobys, volumes, paths—the works. This README spells out the known sections in these files, what they’re for, and how they’re laid out.
+This project explores the `gp_prius.dat` files, which utilize the IGHW format to store level data for *Ratchet & Clank* games on the PS3. These files contain various elements such as mobys (objects), volumes, paths, and more. This README details the known sections within these files, their purposes, and their structural layout.
 
 ## IGHW Format
 
-- **Magic**: Starts with `IGHW` (big-endian), followed by the version (major/minor, 2 bytes each).
+- **Magic**: The file begins with the signature `IGHW` (big-endian), followed by the version number (2 bytes for major version, 2 bytes for minor version).
 - **Header**:
-  - Version 0: Section count at `0x0A` (2 bytes), sections start at `0x10`.
-  - Version 1: Section count at `0x0C` (4 bytes), sections start at `0x20`.
-- **Section**: Each entry is 16 bytes—ID (4), offset (4), flag : if 0x10 then multiple items. if 0x00, there is one item (2) item_count (2), section_size/elem_size (2).
+  - **Version Handling**:
+    - *Version 0*: Section count is stored at offset `0x0A` (2 bytes), and section headers begin at `0x10`.
+    - *Version 1*: Section count is stored at offset `0x0C` (4 bytes), and section headers begin at `0x20`.
+  - **Section Count**: Located at `0x08` (4 bytes, u32), this indicates the total number of sections in the file.
+  - **Length of Header**: At `0x0C` (4 bytes, u32), this represents the combined length of the header itself plus all section headers.
+  - **End of File / Two-Level Redirection System**:  At `0x10` (4 bytes), this address points to a list of 4-byte pointers. Each pointer in this list redirects to each pointer in the mainfile
+  - **Pointer Count**: At `0x14` (4 bytes, u32), this specifies the total number of pointers in the two-level redirection system.
+- **Section**: Each section entry is 16 bytes long, structured as follows:
+  - **ID**: 4 bytes, identifies the section type.
+  - **Offset**: 4 bytes, points to the start of the section’s data in the file.
+  - **Flag**: 1 byte, indicates the section’s structure:
+    - `0x10`: Multiple items are present (count specified in `item_count`).
+    - `0x00`: Single item (size specified in `section_size/elem_size`).
+  - **Item Count**: 3 bytes, number of items (used when flag is `0x10`).
+  - **Section Size / Element Size**: 4 bytes, size of the section or individual element:
+    - If flag is `0x00`, this is the total section size.
+    - If flag is `0x10`, this is the size of each item.
 
 ## Known Sections
 
@@ -93,18 +107,11 @@ Here’s what we’ve figured out about the sections in `gp_prius.dat`, grouped 
 - **Notes**: Acts as a high-level index connecting regions, rendering zones, and other elements. Referenced by multiple sections (e.g., `0x00025006`, `0x0002500C`, `0x00025005`).
 
 ### Offset Index Table
-| Offset       | Role                        | Data Structure                                      | Notes                                                                 |
-|--------------|-----------------------------|-----------------------------------------------------|----------------------------------------------------------------------|
-| `0x00025006` | Offset Index Reference      | 16 bytes: ID (4), Offset (4), Count (4), ElemSize (4) | Points to `0x0019D000`. `Count = 1` limits it to the first entry (`0x0001B900`), matching `0x0002500C` (Rendering Zones - offsets). Likely a specialized or vestigial reference to the rendering zones table. |
+| Offset       | Role                       |
+|--------------|-----------------------------|
+| `0x00025006` | Offset Reference to Rendering Zones (offsets) |
 
-### Rest of the File
-- **Offset of Pointer Index Reference**: After sections, a series of 4-byte offsets continues until the end of the file.
-- **Details**:
-  - The last three addresses are:
-    - `1st`: Matches `0x00025005`’s `ZoneOffset` and `ZoneCount` (e.g., `00 01 B3 80 00 00 00 09`).
-    - `2nd`: Matches `0x00025005`’s `DataOffset` and `Index` (e.g., `00 04 CE 80 00 00 00 01`).
-    - `3rd`: Loops back to the start of the Global Offset Table.
-- **Notes**: These offsets tie back to region definitions and the global index table.
+
 
 ## Extra Notes
 - **Global Offset Table (`4 bytes after 0x00025006`)**: A key structure referenced by sections like `0x00025006`, `0x0002500C`, and `0x00025005`. It centralizes all pointers (names, sub-IGHW, etc.), with a two-level redirection system.

@@ -101,13 +101,13 @@ Here’s what we’ve figured out about the sections in `gp_prius.dat`, grouped 
 - **Offset of Pointer Index Reference**: After sections, a series of 4-byte offsets continues until the end of the file.
 - **Details**:
   - The last three addresses are:
-    - `0x0019CF80`: Matches `0x00025005`’s `ZoneOffset` and `ZoneCount` (e.g., `00 01 B3 80 00 00 00 09`).
-    - `0x0019CF88`: Matches `0x00025005`’s `DataOffset` and `Index` (e.g., `00 04 CE 80 00 00 00 01`).
-    - `0x0019D000`: Loops back to the start of the Global Offset Table.
+    - `1st`: Matches `0x00025005`’s `ZoneOffset` and `ZoneCount` (e.g., `00 01 B3 80 00 00 00 09`).
+    - `2nd`: Matches `0x00025005`’s `DataOffset` and `Index` (e.g., `00 04 CE 80 00 00 00 01`).
+    - `3rd`: Loops back to the start of the Global Offset Table.
 - **Notes**: These offsets tie back to region definitions and the global index table.
 
 ## Extra Notes
-- **Global Offset Table (`0x0019D000`)**: A key structure referenced by sections like `0x00025006`, `0x0002500C`, and `0x00025005`. It centralizes pointers to regions, rendering zones, and other data (names, sub-IGHW, etc.), with a two-level redirection system.
+- **Global Offset Table (`4 bytes after 0x00025006`)**: A key structure referenced by sections like `0x00025006`, `0x0002500C`, and `0x00025005`. It centralizes all pointers (names, sub-IGHW, etc.), with a two-level redirection system.
 - **Zones**: In sections with TUID and NameOffset (e.g., `0x0002504C`, `0x00025060`), the last 4 bytes mark the rendering zone (e.g., `0x00000001`).
 - **TUIDs**: 8-byte unique IDs, often tied to a name in `0x00011300` or kept local.
 - **Types**: Defined in `0x00025022`, essential for sorting out Mobys, Paths, Volumes, and more.

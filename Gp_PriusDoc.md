@@ -37,7 +37,7 @@ Here’s what we’ve figured out about the sections in `gp_prius.dat`, grouped 
 ### Mobys
 | Offset       | Role                | Data Structure                                      | Notes                                                                |
 |--------------|---------------------|-----------------------------------------------------|----------------------------------------------------------------------|
-| `0x00025048` | Moby Instances      | 80 bytes: Model Index (4), Zone Render Index (2), Dist Disappear Force Float default -1 (4), Disappear Dist default -1 (4), Address to IGHW subfile for class setup (4), Subfile Length (4), Pos/Rot/Scale (28), Always `01 01 00 01 00 00 00 01 FF FF FF FF FF FF FF FF 00 00 00 00 00 00 00` (24), Unknown param default `FF 00 00 00` (4), Rest is 00 padding (4) | Coordinates as floats, rotation in radians. Zone Render Index ties to rendering zones. |
+| `0x00025048` | Moby Instances      | 80 bytes: Model Index (2), Zone Render Index (2), Dist Disappear Force Float default -1 (4), Disappear Dist default -1 (4), Address to IGHW subfile for class setup (4), Subfile Length (4), Pos/Rot/Scale (28), Always `01 01 00 01 00 00 00 01 FF FF FF FF FF FF FF FF 00 00 00 00 00 00 00` (24), Unknown param default `FF 00 00 00` (4), Rest is 00 padding (4) | Coordinates as floats, rotation in radians. Zone Render Index ties to rendering zones. |
 | `0x0002504C` | Moby Metadata       | 16 bytes: TUID (8), NameOffset (4), Zone (4)        | Zone’s in the last 4 bytes.                                          |
 
 ### Cuboids (Volumes/Clues)

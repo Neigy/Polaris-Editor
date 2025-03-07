@@ -8,7 +8,7 @@ This project digs into the `gp_prius.dat` files, which use the IGHW format to st
 - **Header**:
   - Version 0: Section count at `0x0A` (2 bytes), sections start at `0x10`.
   - Version 1: Section count at `0x0C` (4 bytes), sections start at `0x20`.
-- **Section**: Each entry is 16 bytes—ID, offset, count/size, and padding/elem_size.
+- **Section**: Each entry is 16 bytes—ID (4), offset (4), count/size (4), and padding/elem_size (4).
 
 ## Known Sections
 
@@ -23,8 +23,8 @@ Here’s what we’ve figured out about the sections in `gp_prius.dat`, grouped 
 ### Mobys
 | Offset       | Role                | Data Structure                                      | Notes                                                                |
 |--------------|---------------------|-----------------------------------------------------|----------------------------------------------------------------------|
-| `0x00025048` | Moby Instances      | 80 bytes: Index/Group (4), Unknown (16), Pos/Rot/Scale (28), Unknown (32) | Coordinates as floats, rotation in radians.    |
-| `0x0002504C` | Moby Metadata       | 16 bytes: TUID (8), NameOffset (4), Zone (4)                              | Zone’s in the last 4 bytes.                    |
+| `0x00025048` | Moby Instances      | 80 bytes: Model Index (4), Zone Render Index (2), Dist Disappear Force Float default -1 (4), Disappear Dist default -1 (4), Address to IGHW subfile for class setup (4), Subfile Length (4), Pos/Rot/Scale (28), Always `01 01 00 01 00 00 00 01 FF FF FF FF FF FF FF FF 00 00 00 00 00 00 00` (24), Unknown param default `FF 00 00 00`, Rest is 00 padding (4) | Coordinates as floats, rotation in radians. Zone Render Index ties to rendering zones. |
+| `0x0002504C` | Moby Metadata       | 16 bytes: TUID (8), NameOffset (4), Zone (4)        | Zone’s in the last 4 bytes.                                          |
 
 ### Cuboids (Volumes/Clues)
 | Offset       | Role                  | Data Structure                                      | Notes                                                               |
@@ -43,7 +43,7 @@ Here’s what we’ve figured out about the sections in `gp_prius.dat`, grouped 
 ### Paths
 | Offset       | Role                  | Data Structure                                      | Notes                                                                |
 |--------------|-----------------------|-----------------------------------------------------|----------------------------------------------------------------------|
-| `0x00025050` | Path Metadata         | 16 bytes: PathPointOffset (4), Unknown value "07 04 17 76" for all paths (4), Total Duration (4), IntroPATH flag (2) (`01 01` for intro paths, `00 00` otherwise—maybe enemies use firepoints with intro paths), PointNum (2) Int16 (how many lines from PathPointOffset, each line is `0x10`) | |
+| `0x00025050` | Path Metadata         | 16 bytes: PathPointOffset (4), Unknown value `07 04 17 76` for all paths (4), Total Duration (4), IntroPATH flag (2) (`01 01` for intro paths, `00 00` otherwise—maybe enemies use firepoints with intro paths), PointNum (2) Int16 (how many lines from PathPointOffset, each line is `0x10`) | |
 | `0x00025054` | Path TUIDs            | 16 bytes: TUID (8), NameOffset (4), Zone (4)        | Zone’s in the last 4 bytes.                                         |
 | `0x00025058` | Path Points           | 16 bytes per point: X, Y, Z, Timestamp (4 floats)   | Timestamp converted to ms (x1000/30).                               |
 
@@ -71,27 +71,43 @@ Here’s what we’ve figured out about the sections in `gp_prius.dat`, grouped 
 ### Regions and Zones
 | Offset       | Role                        | Data Structure                                      | Notes                                                               |
 |--------------|-----------------------------|-----------------------------------------------------|---------------------------------------------------------------------|
-| `0x00025005` | Regions                     | 16 bytes: ZoneOffset (4), ZoneCount (4), DataOffset (4), Index (4) | Name at `DataOffset` (64 bytes).                     |
+| `0x00025005` | Regions                     | 16 bytes: ZoneOffset (4), ZoneCount (4), DataOffset (4), Index (4) | `ZoneOffset` (e.g., `0x0019CF80`) points to region data; `DataOffset` (e.g., `0x0004CE80`) contains a 64-byte null-terminated name. Appears in `0x0019D000`’s final entries. |
 | `0x00025008` | Rendering Zones (names)     | 144 bytes: Name (64), Counts per type (9x8)         | Types: Moby, Path, Volume, etc.                                     |
-| `0x0002500C` | Rendering Zones (offsets)   | 36 bytes: 9 offsets (4 each)                        | Points to TUID lists by type.                                       |
+| `0x0002500C` | Rendering Zones (offsets)   | 36 bytes: 9 offsets (4 each)                        | Points to TUID lists by type; first offset is `0x0001B900`.         |
 | `0x00025010` | Default Region              | Name "default" + Offset (4), Count (4)              | List of indices at the offset (e.g., 9 elements).                   |
 | `0x00025014` | List tied to `0x00025010`   | Indices (4 bytes each)                              | Example: 18 bytes for 4 elements. Used in places like `0x00025054`. |
 
 ### Nested IGHW Sections
 | Offset       | Role                        | Data Structure                                      | Notes                                                                |
 |--------------|-----------------------------|-----------------------------------------------------|----------------------------------------------------------------------|
-| `0x00025020` | Nested IGHW (Class Setup)   | Sub-IGHW file (version 0.2)                         | Instance info can redirecte to a subfile for class configuration     |
-| `0x00025030` | Nested IGHW (Class Setup)         | Sub-IGHW file (version 0.2)                   | Similar to `0x00025020`.                                             |
+| `0x00025020` | Nested IGHW (Class Setup)   | Sub-IGHW file (version 0.2)                         | Instance info can redirect to a subfile for class configuration.    |
+| `0x00025030` | Nested IGHW (Class Setup)   | Sub-IGHW file (version 0.2)                         | Similar to `0x00025020`.                                             |
 
-### Unused Data
+### Global Offset Table (at `0x0019D000`)
+- **Role**: Centralized table of 4-byte offsets redirecting to various data structures throughout the file.
+- **Structure**: Consecutive 4-byte pointers.
+- **Details**:
+  - First entry (`0x0001B900`): Matches `0x0002500C`, points to 9 offsets (36 bytes) for rendering zones by type (Moby, Path, Volume, etc.).
+  - Middle entries (e.g., `0x0000089C`, `0x0000093C`): Redirect to intermediate structures (often 16 bytes) that point to data like names (`0x00011300`), sub-IGHW files, scents, pods, etc.
+  - Last entries (`0x0019CF80`, `0x0019CF88`, `0x0019D000`): Link to `0x00025005` (Regions) definitions (`ZoneOffset`, `ZoneCount`, `DataOffset`, `Index`) and loop back to the table’s start.
+- **Notes**: Acts as a high-level index connecting regions, rendering zones, and other elements. Referenced by multiple sections (e.g., `0x00025006`, `0x0002500C`, `0x00025005`).
+
+### Offset Index Table
 | Offset       | Role                        | Data Structure                                      | Notes                                                                 |
 |--------------|-----------------------------|-----------------------------------------------------|----------------------------------------------------------------------|
-| `0x00025006` | Offset                      | Variable (e.g., offsets or raw data)                | No clear references in the file.                                    |
+| `0x00025006` | Offset Index Reference      | 16 bytes: ID (4), Offset (4), Count (4), ElemSize (4) | Points to `0x0019D000`. `Count = 1` limits it to the first entry (`0x0001B900`), matching `0x0002500C` (Rendering Zones - offsets). Likely a specialized or vestigial reference to the rendering zones table. |
+
+### Rest of the File
+- **Offset of Pointer Index Reference**: After sections, a series of 4-byte offsets continues until the end of the file.
+- **Details**:
+  - The last three addresses are:
+    - `0x0019CF80`: Matches `0x00025005`’s `ZoneOffset` and `ZoneCount` (e.g., `00 01 B3 80 00 00 00 09`).
+    - `0x0019CF88`: Matches `0x00025005`’s `DataOffset` and `Index` (e.g., `00 04 CE 80 00 00 00 01`).
+    - `0x0019D000`: Loops back to the start of the Global Offset Table.
+- **Notes**: These offsets tie back to region definitions and the global index table.
 
 ## Extra Notes
+- **Global Offset Table (`0x0019D000`)**: A key structure referenced by sections like `0x00025006`, `0x0002500C`, and `0x00025005`. It centralizes pointers to regions, rendering zones, and other data (names, sub-IGHW, etc.), with a two-level redirection system.
 - **Zones**: In sections with TUID and NameOffset (e.g., `0x0002504C`, `0x00025060`), the last 4 bytes mark the rendering zone (e.g., `0x00000001`).
 - **TUIDs**: 8-byte unique IDs, often tied to a name in `0x00011300` or kept local.
 - **Types**: Defined in `0x00025022`, essential for sorting out Mobys, Paths, Volumes, and more.
-
-For more details, poke around the source code or jump in and help out!
-

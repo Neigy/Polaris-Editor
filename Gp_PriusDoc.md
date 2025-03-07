@@ -8,7 +8,7 @@ This project digs into the `gp_prius.dat` files, which use the IGHW format to st
 - **Header**:
   - Version 0: Section count at `0x0A` (2 bytes), sections start at `0x10`.
   - Version 1: Section count at `0x0C` (4 bytes), sections start at `0x20`.
-- **Section**: Each entry is 16 bytes—ID (4), offset (4), count/size (4), and padding/elem_size (4).
+- **Section**: Each entry is 16 bytes—ID (4), offset (4), flag : if 0x10 then multiple items. if 0x00, there is one item (2) item_count (2), section_size/elem_size (2).
 
 ## Known Sections
 

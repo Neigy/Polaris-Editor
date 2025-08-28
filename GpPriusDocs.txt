@@ -1,0 +1,87 @@
+This documentation provides a detailed, up-to-date overview of the gp_prius.dat file format used in Ratchet & Clank games on PS3. It is based on extensive analysis of parsing logic, known sections, and data structures. The format is highly structured, using the IGHW container to store level elements like objects (Mobys), volumes, paths, regions, zones, and more. This doc is designed to be comprehensive for level editing purposes, including parsing, modification, and extension strategies.
+IGHW Format Overview
+Magic Signature: Files start with IGHW (4 bytes, big-endian).
+Version:
+Major version (2 bytes at offset 0x04).
+Minor version (2 bytes at offset 0x06).
+Common versions: 0 (older) or 1+ (modern, with extended headers).
+Header Structure:
+Section Count (u32 at 0x08): Total number of sections.
+Header Length (u32 at 0x0C): Length of header + all section headers.
+Pointer Table Offset (u32 at 0x10): Address of the two-level redirection system (global offset table).
+Pointer Count (u32 at 0x14): Number of pointers in the table.
+Version-Specific Handling:
+Version 0: Section count at 0x0A (u16), sections start at 0x10.
+Version 1+: Section count at 0x0C (u32), sections start at 0x20 (padded for alignment).
+Section Headers: Each is 16 bytes, starting after the main header.
+Section ID (u32): Unique identifier (e.g., 0x00025048 for Moby data).
+Data Offset (u32): Absolute file offset to section data.
+Flag (u8):
+0x10: Multi-item section (uses Item Count for repetition).
+0x00: Single-item section (uses Size for total length).
+Item Count (3 bytes): Number of items if flag is 0x10.
+Size/Element Size (u32): Total size (flag 0x00) or per-item size (flag 0x10).
+Two-Level Redirection System (Global Offset Table):
+Located at the Pointer Table Offset.
+A list of 4-byte pointers, each redirecting to another pointer or data structure.
+Role: Central index for cross-referencing sections (e.g., names, sub-IGHW files, regions).
+Example: First pointer often links to rendering zone offsets; last ones loop back to regions.
+When resizing sections, all pointers > modification point must be updated by the delta.
+Padding and Alignment: Sections often padded to 0x10 or 0x100 boundaries. Final file padding may include pointer tables or zeros.
+TUIDs (Unique IDs): 8-byte (u64) identifiers for instances. Often 0xFFFFFFFFFFFFFFFF for unused. Mapped to names via offsets in metadata sections.
+Instance Types: Defined in section 0x00025022. Enum-like: 0=Moby, 1=Path, 2=Volume, 3=Clue, 4=Controller, 5=Scent, 6=Area, 7=Pod, with others unused/reserved.
+Nested IGHW Files: Many instances (e.g., Mobys, Controllers) reference sub-IGHW files for class-specific data (version 0.2 typically). These have their own headers and sections (e.g., 0x0002501C for class enum).
+Known Sections
+Sections are categorized by type. Sizes are per-item for multi-sections or total for single. All offsets are absolute unless noted.
+General/Metadata Sections
+Section ID	Role	Structure/Details	Notes
+0x00011300	Name Tables	Variable-length null-terminated strings (UTF-8).	Referenced by NameOffset in metadata. Parsed by finding \x00 delimiters.
+0x00025022	Instance Types	16 bytes per entry: TUID (u64), Type ID (u32), Padding (u32, often 0xFFFFFFFF).	Maps TUIDs to types (e.g., 0=Moby). Unused entries are 0xFFFFFFFFFFFFFFFF / 0xFFFFFFFF.
+0x0002501C	Class Enum (in sub-IGHW)	u32 enum value (e.g., from VkTGenEnumsClass).	Found in nested IGHW for class-specific setup (e.g., MobyPrius_CLASS=45).
+Mobys (Objects)
+Section ID	Role	Structure/Details	Notes
+0x00025048	Moby Data	80 bytes: Model Index (u16), Zone Render Index (u16), Update Dist (float, -1=unlimited), Display Dist (float, -1=unlimited), Subfile Offset (u32), Subfile Length (u32), Pos (3x float), Rot (3x float), Scale (float), Flags (8 bytes, e.g., 01 01 00 01 00 00 00 01), Unknown (4 bytes, often FF 00 00 00), Padding (4 bytes zeros).	Subfile is nested IGHW for class props. Flags include shader index at byte 2.
+0x0002504C	Moby Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	Links to names and rendering zones.
+Volumes/Cuboids (Including Clues)
+Section ID	Role	Structure/Details	Notes
+0x0002505C	Volume Transformations	64 bytes: 4x4 Matrix (16x float). Position from matrix[12-14].	Used for volumes and clues.
+0x00025060	Volume Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	Shared for volumes/clues; type from 0x00025022.
+0x00025064	Clue Info	16 bytes: Volume TUID Offset (u32), Subfile Offset (u32), Subfile Length (u32), Class ID (u32).	Links to a volume TUID and nested IGHW for class setup.
+0x00025068	Clue Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	Zone in last 4 bytes.
+Controllers
+Section ID	Role	Structure/Details	Notes
+0x0002506C	Controller Data	48 bytes: Subfile Offset (u32), Subfile Length (u32), Pos (3x float), Rot (3x float), Scale (float), Padding (4 bytes).	Subfile is nested IGHW.
+0x00025070	Controller Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	Zone in last 4 bytes.
+Paths
+Section ID	Role	Structure/Details	Notes
+0x00025050	Path Metadata	16 bytes: Point Offset (u32), Unknown (4 bytes, often 07 04 17 76), Total Duration (float), Flags (u16, e.g., 0101 for intro paths), Point Count (u16).	Duration in ms (float * 1000 / 30).
+0x00025054	Path TUIDs/Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	Zone in last 4 bytes.
+0x00025058	Path Points	16 bytes per point: X/Y/Z/Timestamp (4x float).	Timestamp converted to ms.
+Grouped Elements (Pods, Scents, Areas)
+Section ID	Role	Structure/Details	Notes
+0x00025074	Pod Data	16 bytes: Offset (u32), Count (u32), Padding (8 bytes).	Offset to list in 0x0002507C.
+0x00025078	Pod Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	Groups instances.
+0x0002507C	Pod Offsets	4 bytes per: Address to instance (TUID u64 + Type u32 + Padding u32).	References sub-items.
+0x0002508C	Scent Data	16 bytes: Offset (u32), Count (u32), Padding (8 bytes).	Similar to Pods.
+0x00025090	Scent Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	
+0x00025094	Scent Offsets	4 bytes per: Address to instance (TUID u64).	
+0x00025080	Area Data	16 bytes: Path Offset/Count (8 bytes), Volume Offset/Count (8 bytes).	Counts for paths/volumes.
+0x00025084	Area Metadata	16 bytes: TUID (u64), NameOffset (u32), Zone ID (u32).	
+0x00025088	Area Offsets	4 bytes per: Address to TUID list (TUID u64 + Type u32 + Zone u32).	For paths/volumes.
+Regions and Zones (Rendering/Organization)
+Section ID	Role	Structure/Details	Notes
+0x00025005	Region Data	16 bytes: Zone Offset (u32), Zone Count (u32), Name Data Offset (u32), Index (u32).	Links to zones and names (64-byte null-terminated).
+0x00025008	Zone Metadata (Names/Counts)	144 bytes: Name (64 bytes null-term), 9x (Offset u32 + Count u32) pour types, puis 8 octets finaux = 4x u16 (inconnus).	Types: Moby, Path, Volume, Clue, Controller, Area, Pod, Scent, Unused. Les 4 u16 de fin existent sur chaque entrée même si leur logique n'est pas encore établie.
+0x0002500C	Zone Offsets	36 bytes: 9x u32 offsets to TUID lists per type.	Points to instance lists.
+0x00025010	Default Region Names	Variable: "default" name + Offset (u32) + Count (u32) to indices.	Often 9 elements (one per type).
+0x00025014	Zone Counts List	18 bytes: 9x u16 counts (one per type).	Matches 0x00025008 structure.
+Nested IGHW (Class Files)
+Section ID	Role	Structure/Details	Notes
+0x00025020	Host/Online Class Files	Nested IGHW (version 0.2): Sub-sections like 0x0002501C (class enum).	For instance-specific props.
+0x00025030	Local Class Files	Similar to above.	
+Additional Structures and Notes
+Class Enums (VkTGenEnumsClass): Used in sub-IGHW (e.g., MobyPrius_CLASS=45, VolumePrius_CLASS=49). Defines behaviors like health, AI, effects.
+Rendering Zones: Divide the level for optimization. Each zone has counts/offsets per type; unused type=8.
+Resizing Sections: When modifying (e.g., adding items), update sizes, counts, and all pointers > modification point by delta. Handle padding (e.g., to 0x10/0x100). Reparse headers after changes.
+TUID Handling: Split into 4x u16 for Lua exports. Types resolved via 0x00025022.
+Editing Considerations: For level editing, focus on TUID consistency, zone updates, and sub-IGHW modifications. Script shows robust parsing for all sections, supporting search/filter/export.

@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+.env/
+
+# Données volumineuses / binaires
+*.dat
+*.bin
+*.pak
+*.zip
+*.rar
+*.7z
+
+# Sorties d’extraction/rebuild
+gp_prius/
+!gp_prius/extraction_metadata.json
+!gp_prius/default/**.json
+!gp_prius/default/**.controller.json
+!gp_prius/default/**.moby.json
+!gp_prius/default/**.path.json
+!gp_prius/default/**.volume.json
+!gp_prius/default/**.clue.json
+!gp_prius/default/**.area.json
+!gp_prius/default/**.pod.json
+!gp_prius/default/**.scent.json
+gp_prius/**.host.dat
+gp_prius/**.local.dat
+
+# IDE
+.vscode/
+.idea/
